@@ -35,20 +35,24 @@ jobs:
         echo "runneruser:P@ssw0rd!" | sudo chpasswd # <-- Set password (GANTI "P@ssw0rd!" dengan password kuat Anda)
         sudo adduser runneruser sudo # Beri hak sudo pada user baru (opsional, tapi seringkali dibutuhkan)
         
-        # --- PERBAIKAN DI SINI: Membuat .xsession per baris dengan 'tee -a' ---
-        # Hapus file .xsession yang mungkin ada sebelumnya (untuk bersih-bersih awal)
-        sudo rm -f /home/runneruser/.xsession 
-        
-        # Tulis setiap baris skrip ke file .xsession
-        echo '#!/bin/bash' | sudo tee -a /home/runneruser/.xsession
-        echo 'if test -z "$DBUS_SESSION_BUS_ADDRESS"; then' | sudo tee -a /home/runneruser/.xsession
-        echo '  eval "$(dbus-launch --sh-syntax)"' | sudo tee -a /home/runneruser/.xsession
-        echo 'fi' | sudo tee -a /home/runneruser/.xsession
-        echo 'export XDG_CONFIG_DIRS=/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}' | sudo tee -a /home/runneruser/.xsession
-        echo 'xfconfd &' | sudo tee -a /home/runneruser/.xsession
-        echo 'exec xfce4-session' | sudo tee -a /home/runneruser/.xsession
-        
-        sudo chmod +x /home/runneruser/.xsession # Pastikan skrip bisa dieksekusi
+        # --- PERBAIKAN DI SINI: Modifikasi langsung /etc/xrdp/startwm.sh ---
+        # Hapus skrip startwm.sh yang ada dan buat yang baru dengan konten XFCE
+        sudo rm -f /etc/xrdp/startwm.sh # Hapus yang lama
+        sudo sh -c 'cat <<EOF > /etc/xrdp/startwm.sh
+#!/bin/bash
+# Pastikan D-Bus dimulai untuk sesi ini
+if test -z "$DBUS_SESSION_BUS_ADDRESS"; then
+  eval "\$(dbus-launch --sh-syntax)"
+fi
+
+# Atur variabel lingkungan XDG untuk XFCE
+export XDG_CONFIG_DIRS=/etc/xdg:\${XDG_CONFIG_DIRS:-/etc/xdg}
+export XDG_DATA_DIRS=/usr/local/share:/usr/share:\${XDG_DATA_DIRS:-/usr/share}
+
+# Eksekusi XFCE4 session manager
+exec xfce4-session
+EOF'
+        sudo chmod +x /etc/xrdp/startwm.sh # Pastikan skrip bisa dieksekusi
         # --- AKHIR PERBAIKAN ---
         
         # Tambahkan user 'runneruser' ke grup ssl-cert dan xrdp agar xrdp bisa bekerja (kadang dibutuhkan)
