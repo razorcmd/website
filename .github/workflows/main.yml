@@ -30,12 +30,12 @@ jobs:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }} # Pastikan ini diset di GitHub Secrets Anda
 
     - name: Create RDP User and Configure XFCE
-      run: |
+      run: | # <-- PASTIKAN INDENTASI BARIS INI BENAR (2 spasi dari 'name:')
         sudo useradd -m -s /bin/bash runneruser # Buat user baru 'runneruser' dengan home directory dan shell bash
         echo "runneruser:P@ssw0rd!" | sudo chpasswd # <-- Set password (GANTI "P@ssw0rd!" dengan password kuat Anda)
         sudo adduser runneruser sudo # Beri hak sudo pada user baru (opsional, tapi seringkali dibutuhkan)
         
-       # --- PERBAIKAN DI SINI: Membuat .xsession per baris dengan 'tee -a' ---
+        # --- PERBAIKAN DI SINI: Membuat .xsession per baris dengan 'tee -a' ---
         # Hapus file .xsession yang mungkin ada sebelumnya (untuk bersih-bersih awal)
         sudo rm -f /home/runneruser/.xsession 
         
@@ -49,6 +49,7 @@ jobs:
         echo 'exec xfce4-session' | sudo tee -a /home/runneruser/.xsession
         
         sudo chmod +x /home/runneruser/.xsession # Pastikan skrip bisa dieksekusi
+        # --- AKHIR PERBAIKAN ---
         
         # Tambahkan user 'runneruser' ke grup ssl-cert dan xrdp agar xrdp bisa bekerja (kadang dibutuhkan)
         sudo usermod -a -G ssl-cert runneruser
