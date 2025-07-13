@@ -44,12 +44,12 @@ jobs:
         # Tulis konten script secara langsung sebagai string multi-baris YAML dan pipe ke sudo tee
         echo '
 #!/bin/bash
-if test -z "\$DBUS_SESSION_BUS_ADDRESS"; then # <--- PERUBAHAN DI SINI: \$DBUS
-  eval "\$(dbus-launch --sh-syntax)" # <--- PERUBAHAN DI SINI: \$(dbus-launch
-fi
-export XDG_CONFIG_DIRS=/etc/xdg:\${XDG_CONFIG_DIRS:-/etc/xdg} # <--- PERUBAHAN DI SINI: \${XDG
-export XDG_DATA_DIRS=/usr/local/share:/usr/share:\${XDG_DATA_DIRS:-/usr/share} # <--- PERUBAHAN DI SINI: \${XDG
-exec dbus-launch --exit-with-session startlxde
+        if test -z "\$DBUS_SESSION_BUS_ADDRESS"; then # <--- PERUBAHAN DI SINI: \$DBUS
+          eval "\$(dbus-launch --sh-syntax)" # <--- PERUBAHAN DI SINI: \$(dbus-launch
+        fi
+        export XDG_CONFIG_DIRS=/etc/xdg:\${XDG_CONFIG_DIRS:-/etc/xdg} # <--- PERUBAHAN DI SINI: \${XDG
+        export XDG_DATA_DIRS=/usr/local/share:/usr/share:\${XDG_DATA_DIRS:-/usr/share} # <--- PERUBAHAN DI SINI: \${XDG
+        exec dbus-launch --exit-with-session startlxde
 ' | sudo tee /etc/xrdp/startwm.sh > /dev/null
         
         sudo chmod +x /etc/xrdp/startwm.sh # Pastikan skrip bisa dieksekusi
