@@ -36,24 +36,25 @@ jobs:
       run: |
         sudo useradd -m -s /bin/bash runneruser # Buat user baru 'runneruser'
         echo "runneruser:P@ssw0rd!" | sudo chpasswd # <-- Set password (GANTI "P@ssw0rd!" dengan password kuat Anda)
-        sudo adduser runneruser sudo # Beri hak sudo pada user baru
+        sudo adduser runneruser sudo # Beri hak sudo pada user baru (opsional, tapi seringkali dibutuhkan)
         
         # --- PERBAIKAN DI SINI: Modifikasi /etc/xrdp/startwm.sh untuk LXDE ---
         sudo rm -f /etc/xrdp/startwm.sh
         sudo sh -c 'cat <<EOF > /etc/xrdp/startwm.sh
+# PENTING: BARIS INI HARUS RATA KIRI!
 #!/bin/bash
 # Pastikan D-Bus dimulai untuk sesi ini
-        if test -z "$DBUS_SESSION_BUS_ADDRESS"; then
-        eval "$(dbus-launch --sh-syntax)"
-        fi
+if test -z "$DBUS_SESSION_BUS_ADDRESS"; then
+eval "$(dbus-launch --sh-syntax)"
+fi
 
 # Atur variabel lingkungan XDG
-        export XDG_CONFIG_DIRS=/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}
-        export XDG_DATA_DIRS=/usr/local/share:/usr/share:\${XDG_DATA_DIRS:-/usr/share}
+export XDG_CONFIG_DIRS=/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}
+export XDG_DATA_DIRS=/usr/local/share:/usr/share:${XDG_DATA_DIRS:-/usr/share}
 
 # Eksekusi sesi LXDE
-        exec startlxde
-        EOF'
+exec startlxde
+EOF' # PENTING: BARIS INI HARUS RATA KIRI!
         sudo chmod +x /etc/xrdp/startwm.sh
         # --- AKHIR PERBAIKAN ---
         
