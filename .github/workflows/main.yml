@@ -3,8 +3,8 @@ name: Linux RDP with ngrok
 on: [push, workflow_dispatch] # Akan berjalan saat push atau manual trigger
 
 jobs:
-  build:
-    runs-on: ubuntu-latest # <-- Menggunakan runner Linux (Ubuntu) terbaru
+  build: # Job untuk setup RDP Linux
+    runs-on: ubuntu-latest # Menggunakan runner Linux (Ubuntu) terbaru
 
     steps:
     - name: Checkout Code
@@ -13,9 +13,8 @@ jobs:
     - name: Update apt and install desktop environment, xrdp
       run: |
         sudo apt-get update # Update daftar paket
-        # --- PERUBAHAN DI SINI: Instal LXDE bukan XFCE ---
-        sudo apt-get install -y openssh-server xrdp lxde # Instal SSH, RDP server (xrdp), dan desktop environment LXDE
-        # --- AKHIR PERUBAHAN ---
+        # Instal SSH, RDP server (xrdp), dan desktop environment LXDE
+        sudo apt-get install -y openssh-server xrdp lxde 
         sudo systemctl enable xrdp # Aktifkan service xrdp
         sudo systemctl start xrdp  # Mulai service xrdp
         sudo ufw allow 3389/tcp    # Izinkan koneksi RDP di firewall (port 3389)
@@ -29,34 +28,27 @@ jobs:
     - name: Authenticate ngrok
       run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
       env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }} # Pastikan ini diset di GitHub Secrets Anda
 
     - name: Create RDP User and Configure Desktop Environment
-      # Nama langkah sedikit diubah agar lebih umum
       run: |
         sudo useradd -m -s /bin/bash runneruser # Buat user baru 'runneruser'
         echo "runneruser:P@ssw0rd!" | sudo chpasswd # <-- Set password (GANTI "P@ssw0rd!" dengan password kuat Anda)
         sudo adduser runneruser sudo # Beri hak sudo pada user baru (opsional, tapi seringkali dibutuhkan)
         
-        # --- PERBAIKAN DI SINI: Modifikasi /etc/xrdp/startwm.sh untuk LXDE ---
+        # Membuat /etc/xrdp/startwm.sh dengan pipa langsung
         sudo rm -f /etc/xrdp/startwm.sh
-        sudo sh -c 'cat <<EOF > /etc/xrdp/startwm.sh
-# PENTING: BARIS INI HARUS RATA KIRI!
+        echo '
 #!/bin/bash
-# Pastikan D-Bus dimulai untuk sesi ini
 if test -z "$DBUS_SESSION_BUS_ADDRESS"; then
-eval "$(dbus-launch --sh-syntax)"
+  eval "$(dbus-launch --sh-syntax)"
 fi
-
-# Atur variabel lingkungan XDG
 export XDG_CONFIG_DIRS=/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}
-export XDG_DATA_DIRS=/usr/local/share:/usr/share:${XDG_DATA_DIRS:-/usr/share}
-
-# Eksekusi sesi LXDE
+export XDG_DATA_DIRS=/usr/local/share:/usr/share:\${XDG_DATA_DIRS:-/usr/share}
 exec startlxde
-EOF' # PENTING: BARIS INI HARUS RATA KIRI!
-        sudo chmod +x /etc/xrdp/startwm.sh
-        # --- AKHIR PERBAIKAN ---
+' | sudo tee /etc/xrdp/startwm.sh > /dev/null # Menulis script ke file
+        
+        sudo chmod +x /etc/xrdp/startwm.sh # Pastikan skrip bisa dieksekusi
         
         sudo usermod -a -G ssl-cert runneruser
         sudo usermod -a -G xrdp runneruser
@@ -64,12 +56,31 @@ EOF' # PENTING: BARIS INI HARUS RATA KIRI!
         sudo systemctl restart xrdp 
     
     - name: Create ngrok Tunnel
-      run: ./ngrok tcp 3389 --log stdout > ngrok.log 2>&1 &
+      run: ./ngrok tcp 3389 --log stdout > ngrok.log 2>&1 & # Jalankan ngrok di background, tunnel port RDP (3389)
     
     - name: Get ngrok Tunnel URL
       run: |
-        sleep 15
-        cat ngrok.log
+        sleep 15 # Beri waktu ngrok untuk membuat tunnel dan log URL
+        cat ngrok.log # Tampilkan log ngrok untuk mendapatkan URL tunnel
     
     - name: Keep Job Alive
-      run: sleep 6h
+      run: sleep 6h # Jaga job tetap aktif selama 6 jam (maksimal untuk akun gratis)
+
+  code-review: # Job baru untuk Code Reviewer
+    runs-on: ubuntu-latest # Runner untuk job ini
+
+    # Job ini akan berjalan saat ada Pull Request dibuka atau diupdate
+    on: pull_request 
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4 # Untuk mengakses kode yang akan direview
+      with:
+        fetch-depth: 0 # Penting untuk review code yang komprehensif
+
+    - name: Gemini AI Code Reviewer
+      uses: truongnhp1992/gemini-ai-code-re@v6.5.0 # Menggunakan Action Gemini Code Reviewer versi 6.5.0
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }} # Token GitHub bawaan untuk otentikasi
+        google_gemini_api_key: ${{ secrets.GOOGLE_GEMINI_API_KEY }} # <--- PENTING: Anda harus setting ini sebagai GitHub Secret
+        # gemini_model: 'gemini-pro' # Opsional: Anda bisa tentukan model Gemini yang digunakan, defaultnya biasanya 'gemini-pro'
