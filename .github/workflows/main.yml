@@ -35,7 +35,7 @@ jobs:
         echo "runneruser:P@ssw0rd!" | sudo chpasswd # <-- Set password (GANTI "P@ssw0rd!" dengan password kuat Anda)
         sudo adduser runneruser sudo # Beri hak sudo pada user baru (opsional, tapi seringkali dibutuhkan)
         
-  # --- PERBAIKAN DI SINI: Membuat .xsession yang lebih lengkap dan benar ---
+        # --- PERBAIKAN DI SINI: Membuat .xsession yang lebih lengkap dan benar ---
         sudo sh -c 'cat <<EOF > /home/runneruser/.xsession
 #!/bin/bash
 # Pastikan D-Bus dimulai dan alamat sesi diatur
