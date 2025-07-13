@@ -35,9 +35,13 @@ jobs:
         echo "runneruser:P@ssw0rd!" | sudo chpasswd # <-- Set password (GANTI "P@ssw0rd!" dengan password kuat Anda)
         sudo adduser runneruser sudo # Beri hak sudo pada user baru (opsional, tapi seringkali dibutuhkan)
         
-        # Konfigurasi XFCE sebagai desktop environment untuk RDP
-        echo "xfce4-session" > /home/runneruser/.xsession
-        sudo chmod +x /home/runneruser/.xsession # Beri izin eksekusi pada .xsession
+           # --- PERBAIKAN DI SINI ---
+        # Membuat .xsession sebagai runneruser
+        sudo -u runneruser sh -c 'echo "xfce4-session" > /home/runneruser/.xsession' 
+        
+        # Memberi izin eksekusi pada .xsession (penting agar bisa dijalankan)
+        sudo chmod +x /home/runneruser/.xsession 
+        # --- AKHIR PERBAIKAN ---
         
         # Tambahkan user 'runneruser' ke grup ssl-cert dan xrdp agar xrdp bisa bekerja (kadang dibutuhkan)
         sudo usermod -a -G ssl-cert runneruser
