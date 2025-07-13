@@ -35,25 +35,20 @@ jobs:
         echo "runneruser:P@ssw0rd!" | sudo chpasswd # <-- Set password (GANTI "P@ssw0rd!" dengan password kuat Anda)
         sudo adduser runneruser sudo # Beri hak sudo pada user baru (opsional, tapi seringkali dibutuhkan)
         
-        # --- PERBAIKAN DI SINI: Membuat .xsession yang lebih lengkap dan benar ---
-        sudo sh -c 'cat <<EOF > /home/runneruser/.xsession
-#!/bin/bash
-# Pastikan D-Bus dimulai dan alamat sesi diatur
-if test -z "$DBUS_SESSION_BUS_ADDRESS"; then
-  eval "\$(dbus-launch --sh-syntax)"
-fi
-
-# Pastikan $XDG_CONFIG_DIRS mencakup /etc/xdg
-export XDG_CONFIG_DIRS=/etc/xdg:\${XDG_CONFIG_DIRS:-/etc/xdg}
-
-# Mulai xfconfd (daemon konfigurasi XFCE) di background
-xfconfd &
-
-# Jalankan sesi XFCE4
-exec xfce4-session
-EOF'
+       # --- PERBAIKAN DI SINI: Membuat .xsession per baris dengan 'tee -a' ---
+        # Hapus file .xsession yang mungkin ada sebelumnya (untuk bersih-bersih awal)
+        sudo rm -f /home/runneruser/.xsession 
+        
+        # Tulis setiap baris skrip ke file .xsession
+        echo '#!/bin/bash' | sudo tee -a /home/runneruser/.xsession
+        echo 'if test -z "$DBUS_SESSION_BUS_ADDRESS"; then' | sudo tee -a /home/runneruser/.xsession
+        echo '  eval "$(dbus-launch --sh-syntax)"' | sudo tee -a /home/runneruser/.xsession
+        echo 'fi' | sudo tee -a /home/runneruser/.xsession
+        echo 'export XDG_CONFIG_DIRS=/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}' | sudo tee -a /home/runneruser/.xsession
+        echo 'xfconfd &' | sudo tee -a /home/runneruser/.xsession
+        echo 'exec xfce4-session' | sudo tee -a /home/runneruser/.xsession
+        
         sudo chmod +x /home/runneruser/.xsession # Pastikan skrip bisa dieksekusi
-        # --- AKHIR PERBAIKAN ---
         
         # Tambahkan user 'runneruser' ke grup ssl-cert dan xrdp agar xrdp bisa bekerja (kadang dibutuhkan)
         sudo usermod -a -G ssl-cert runneruser
