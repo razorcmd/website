@@ -13,9 +13,8 @@ jobs:
     - name: Update apt and install desktop environment, xrdp
       run: |
         sudo apt-get update # Update daftar paket
-        # --- PERUBAHAN DI SINI: Instal LXDE bukan XFCE ---
-        sudo apt-get install -y openssh-server xrdp lxde # Instal SSH, RDP server (xrdp), dan desktop environment LXDE
-        # --- AKHIR PERUBAHAN ---
+        # Instal SSH, RDP server (xrdp), dan desktop environment LXDE
+        sudo apt-get install -y openssh-server xrdp lxde 
         sudo systemctl enable xrdp # Aktifkan service xrdp
         sudo systemctl start xrdp  # Mulai service xrdp
         sudo ufw allow 3389/tcp    # Izinkan koneksi RDP di firewall (port 3389)
@@ -30,29 +29,27 @@ jobs:
       run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+    
+    # --- PERBAIKAN DI SINI: TAMBAHKAN BARIS KOSONG SETELAH BLOK 'env:' ---
+
     - name: Create RDP User and Configure Desktop Environment
       run: |
         sudo useradd -m -s /bin/bash runneruser # Buat user baru 'runneruser'
         echo "runneruser:P@ssw0rd!" | sudo chpasswd # <-- Set password (GANTI "P@ssw0rd!" dengan password kuat Anda)
         sudo adduser runneruser sudo # Beri hak sudo pada user baru (opsional, tapi seringkali dibutuhkan)
         
-        # --- PERBAIKAN DI SINI: Membuat /etc/xrdp/startwm.sh dengan solusi D-Bus yang berbeda ---
+        # Membuat /etc/xrdp/startwm.sh dengan pipa langsung (versi D-Bus baru)
         sudo rm -f /etc/xrdp/startwm.sh
         
         # Tulis konten script secara langsung sebagai string multi-baris YAML dan pipe ke sudo tee
         echo '
 #!/bin/bash
-# Atur variabel lingkungan XDG
-        export XDG_CONFIG_DIRS=/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}
-        export XDG_DATA_DIRS=/usr/local/share:/usr/share:\${XDG_DATA_DIRS:-/usr/share}
-
-# Eksekusi sesi LXDE menggunakan dbus-run-session
-# Ini adalah cara yang paling handal untuk memastikan sesi D-Bus dimulai dengan benar
-        exec dbus-run-session startlxde
-        ' | sudo tee /etc/xrdp/startwm.sh > /dev/null
+export XDG_CONFIG_DIRS=/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}
+export XDG_DATA_DIRS=/usr/local/share:/usr/share:\${XDG_DATA_DIRS:-/usr/share}
+exec dbus-launch --exit-with-session startlxde
+' | sudo tee /etc/xrdp/startwm.sh > /dev/null
         
         sudo chmod +x /etc/xrdp/startwm.sh # Pastikan skrip bisa dieksekusi
-        # --- AKHIR PERBAIKAN ---
         
         sudo usermod -a -G ssl-cert runneruser
         sudo usermod -a -G xrdp runneruser
@@ -64,8 +61,26 @@ jobs:
     
     - name: Get ngrok Tunnel URL
       run: |
-        sleep 15
-        cat ngrok.log
+        sleep 15 # Beri waktu ngrok untuk membuat tunnel dan log URL
+        cat ngrok.log # Tampilkan log ngrok untuk mendapatkan URL tunnel
     
     - name: Keep Job Alive
-      run: sleep 6h
+      run: sleep 6h # Jaga job tetap aktif selama 6 jam (maksimal untuk akun gratis)
+
+  code-review: # Job baru untuk Code Reviewer
+    runs-on: ubuntu-latest # Runner untuk job ini
+
+    on: pull_request 
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4 # Untuk mengakses kode yang akan direview
+      with:
+        fetch-depth: 0 # Penting untuk review code yang komprehensif
+
+    - name: Gemini AI Code Reviewer
+      uses: truongnhp1992/gemini-ai-code-re@v6.5.0 # Menggunakan Action Gemini Code Reviewer versi 6.5.0
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }} # Token GitHub bawaan untuk otentikasi
+        google_gemini_api_key: ${{ secrets.GOOGLE_GEMINI_API_KEY }} # <--- PENTING: Anda harus setting ini sebagai GitHub Secret
+        # gemini_model: 'gemini-pro' # Opsional: Anda bisa tentukan model Gemini yang digunakan, defaultnya biasanya 'gemini-pro'
