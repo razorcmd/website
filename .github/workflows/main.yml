@@ -30,8 +30,6 @@ jobs:
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
     
-    # Tambahkan baris kosong setelah blok 'env:'
-
     - name: Create RDP User and Configure Desktop Environment
       run: |
         sudo useradd -m -s /bin/bash runneruser # Buat user baru 'runneruser'
