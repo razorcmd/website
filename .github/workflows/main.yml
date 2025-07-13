@@ -30,7 +30,7 @@ jobs:
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
     
-    # --- PERBAIKAN DI SINI: TAMBAHKAN BARIS KOSONG SETELAH BLOK 'env:' ---
+    # Tambahkan baris kosong setelah blok 'env:'
 
     - name: Create RDP User and Configure Desktop Environment
       run: |
@@ -44,8 +44,11 @@ jobs:
         # Tulis konten script secara langsung sebagai string multi-baris YAML dan pipe ke sudo tee
         echo '
 #!/bin/bash
-export XDG_CONFIG_DIRS=/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}
-export XDG_DATA_DIRS=/usr/local/share:/usr/share:\${XDG_DATA_DIRS:-/usr/share}
+if test -z "\$DBUS_SESSION_BUS_ADDRESS"; then # <--- PERUBAHAN DI SINI: \$DBUS
+  eval "\$(dbus-launch --sh-syntax)" # <--- PERUBAHAN DI SINI: \$(dbus-launch
+fi
+export XDG_CONFIG_DIRS=/etc/xdg:\${XDG_CONFIG_DIRS:-/etc/xdg} # <--- PERUBAHAN DI SINI: \${XDG
+export XDG_DATA_DIRS=/usr/local/share:/usr/share:\${XDG_DATA_DIRS:-/usr/share} # <--- PERUBAHAN DI SINI: \${XDG
 exec dbus-launch --exit-with-session startlxde
 ' | sudo tee /etc/xrdp/startwm.sh > /dev/null
         
@@ -61,11 +64,11 @@ exec dbus-launch --exit-with-session startlxde
     
     - name: Get ngrok Tunnel URL
       run: |
-        sleep 15 # Beri waktu ngrok untuk membuat tunnel dan log URL
-        cat ngrok.log # Tampilkan log ngrok untuk mendapatkan URL tunnel
+        sleep 15
+        cat ngrok.log
     
     - name: Keep Job Alive
-      run: sleep 6h # Jaga job tetap aktif selama 6 jam (maksimal untuk akun gratis)
+      run: sleep 6h 
 
   code-review: # Job baru untuk Code Reviewer
     runs-on: ubuntu-latest # Runner untuk job ini
