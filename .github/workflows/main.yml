@@ -1,25 +1,58 @@
-name: CI
+name: Linux RDP with ngrok
 
-on: [push, workflow_dispatch]
+on: [push, workflow_dispatch] # Akan berjalan saat push atau manual trigger
 
 jobs:
   build:
-  
-    runs-on: windows-latest
-    
+    runs-on: ubuntu-latest # <-- Perubahan Penting: Menggunakan runner Linux (Ubuntu) terbaru
+
     steps:
-    - name: Download
-      run: Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
-    - name: Extract
-      run: Expand-Archive ngrok.zip
-    - name: Auth
-      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+    - name: Checkout Code
+      uses: actions/checkout@v4 # Untuk memastikan file-file repo Anda tersedia
+
+    - name: Update apt and install desktop environment, xrdp
+      run: |
+        sudo apt-get update # Update daftar paket
+        sudo apt-get install -y openssh-server xrdp xfce4 xfce4-goodies # Instal SSH, RDP server (xrdp), dan desktop environment ringan (XFCE)
+        sudo systemctl enable xrdp # Aktifkan service xrdp
+        sudo systemctl start xrdp  # Mulai service xrdp
+        sudo ufw allow 3389/tcp    # Izinkan koneksi RDP di firewall (port 3389)
+
+    - name: Download ngrok for Linux
+      run: |
+        curl -s https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip -o ngrok.zip # <-- Mengunduh versi ngrok untuk Linux AMD64
+        unzip ngrok.zip # Ekstrak ngrok
+        chmod +x ngrok # Beri izin eksekusi pada ngrok
+
+    - name: Authenticate ngrok
+      run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
       env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-    - name: Enable TS
-      run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
-    - run: Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-    - run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
-    - run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force)
-    - name: Create Tunnel
-      run: .\ngrok\ngrok.exe tcp 3389
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }} # Pastikan ini diset di GitHub Secrets Anda
+
+    - name: Create RDP User and Configure XFCE
+      run: |
+        sudo useradd -m -s /bin/bash runneruser # Buat user baru 'runneruser' dengan home directory dan shell bash
+        echo "runneruser:P@ssw0rd!" | sudo chpasswd # <-- Set password (GANTI "P@ssw0rd!" dengan password kuat Anda)
+        sudo adduser runneruser sudo # Beri hak sudo pada user baru (opsional, tapi seringkali dibutuhkan)
+        
+        # Konfigurasi XFCE sebagai desktop environment untuk RDP
+        echo "xfce4-session" > /home/runneruser/.xsession
+        sudo chmod +x /home/runneruser/.xsession # Beri izin eksekusi pada .xsession
+        
+        # Tambahkan user 'runneruser' ke grup ssl-cert dan xrdp agar xrdp bisa bekerja (kadang dibutuhkan)
+        sudo usermod -a -G ssl-cert runneruser
+        sudo usermod -a -G xrdp runneruser
+        
+        # Restart xrdp service setelah konfigurasi user
+        sudo systemctl restart xrdp 
+    
+    - name: Create ngrok Tunnel
+      run: ./ngrok tcp 3389 --log stdout > ngrok.log 2>&1 & # Jalankan ngrok di background, tunnel port RDP (3389)
+    
+    - name: Get ngrok Tunnel URL
+      run: |
+        sleep 15 # Beri waktu ngrok untuk membuat tunnel dan log URL
+        cat ngrok.log # Tampilkan log ngrok untuk mendapatkan URL tunnel
+    
+    - name: Keep Job Alive
+      run: sleep 6h # <-- Jaga job tetap aktif selama 6 jam (maksimal untuk akun gratis)
